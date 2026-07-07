@@ -1,0 +1,13 @@
+{
+ "version": 0,
+ "case-sensitive": "false",
+ "fallthrough": true,
+ "roots": [
+  {"type": "directory", "name": "/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/ApplicationServices.framework/Frameworks/HIServices.framework/Headers", "contents": [{"type": "file", "name": "Icons.h", "external-contents": "/Users/hugh/Projects/FlowVoice/SDKShim/HIServices/Icons.h"}]},
+  {"type": "directory", "name": "/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/ApplicationServices.framework/Frameworks/HIServices.framework/Versions/A/Headers", "contents": [{"type": "file", "name": "Icons.h", "external-contents": "/Users/hugh/Projects/FlowVoice/SDKShim/HIServices/Icons.h"}]},
+  {"type": "directory", "name": "/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk/System/Library/Frameworks/ApplicationServices.framework/Frameworks/HIServices.framework/Versions/Current/Headers", "contents": [{"type": "file", "name": "Icons.h", "external-contents": "/Users/hugh/Projects/FlowVoice/SDKShim/HIServices/Icons.h"}]},
+  {"type": "directory", "name": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/ApplicationServices.framework/Frameworks/HIServices.framework/Headers", "contents": [{"type": "file", "name": "Icons.h", "external-contents": "/Users/hugh/Projects/FlowVoice/SDKShim/HIServices/Icons.h"}]},
+  {"type": "directory", "name": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/ApplicationServices.framework/Frameworks/HIServices.framework/Versions/A/Headers", "contents": [{"type": "file", "name": "Icons.h", "external-contents": "/Users/hugh/Projects/FlowVoice/SDKShim/HIServices/Icons.h"}]},
+  {"type": "directory", "name": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks/ApplicationServices.framework/Frameworks/HIServices.framework/Versions/Current/Headers", "contents": [{"type": "file", "name": "Icons.h", "external-contents": "/Users/hugh/Projects/FlowVoice/SDKShim/HIServices/Icons.h"}]}
+ ]
+}

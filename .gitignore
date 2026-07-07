@@ -1,0 +1,6 @@
+.build/
+.swiftpm/
+FlowVoice.app/
+build.log
+test.log
+.DS_Store
