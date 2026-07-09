@@ -28,12 +28,17 @@ enum OnboardingWindow {
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
+
+    static func close() {
+        window?.close()
+    }
 }
 
 struct OnboardingView: View {
     @State private var micGranted = false
     @State private var speechGranted = false
     @State private var axGranted = false
+    @State private var didScheduleClose = false
     @ObservedObject var state = AppState.shared
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -113,6 +118,14 @@ struct OnboardingView: View {
         micGranted = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
         speechGranted = SFSpeechRecognizer.authorizationStatus() == .authorized
         axGranted = Paster.hasAccessibilityPermission
+        // Once everything is granted, let the user read "You're set" briefly,
+        // then close the window automatically instead of leaving it open.
+        if OnboardingWindow.allPermissionsGranted, !didScheduleClose {
+            didScheduleClose = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                OnboardingWindow.close()
+            }
+        }
     }
 }
 

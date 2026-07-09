@@ -147,10 +147,20 @@ enum TextFormatter {
             }
             result = ns as String
         }
-        // Ensure terminal punctuation for sentence-like text.
-        if let last = result.last, !"\n.!?:;,-)]}\"'".contains(last), result.count > 2 {
+        // Ensure terminal punctuation for sentence-like text — but not when the
+        // text ends in a URL or bare domain, where a trailing "." breaks it.
+        if let last = result.last, !"\n.!?:;,-)]}\"'".contains(last), result.count > 2,
+           !endsWithURL(result) {
             result += "."
         }
         return result
+    }
+
+    /// True when the final token looks like a URL or bare domain
+    /// (e.g. "github.com", "https://x.io/y") — appending "." would corrupt it.
+    private static func endsWithURL(_ text: String) -> Bool {
+        guard let token = text.split(whereSeparator: { $0 == " " || $0 == "\n" }).last else { return false }
+        let pattern = #"^(https?://\S+|[\w-]+(\.[\w-]+)*\.[a-z]{2,}(/\S*)?)$"#
+        return token.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
 }

@@ -377,11 +377,12 @@ struct SnippetsView: View {
 struct SettingsView: View {
     @ObservedObject var state = AppState.shared
 
-    private var supportedLocales: [Locale] {
-        SFSpeechRecognizer.supportedLocales().sorted { localeLabel($0) < localeLabel($1) }
-    }
+    /// Computed once and cached — supportedLocales() returns 60+ entries and
+    /// sorting them on every Settings re-render was needless work.
+    private static let supportedLocales: [Locale] =
+        SFSpeechRecognizer.supportedLocales().sorted { Self.localeLabel($0) < Self.localeLabel($1) }
 
-    private func localeLabel(_ locale: Locale) -> String {
+    private static func localeLabel(_ locale: Locale) -> String {
         Locale.current.localizedString(forIdentifier: locale.identifier) ?? locale.identifier
     }
 
@@ -426,8 +427,8 @@ struct SettingsView: View {
             Section {
                 Picker("Speech recognition language", selection: $state.localeId) {
                     Text("System default").tag("")
-                    ForEach(supportedLocales, id: \.identifier) { locale in
-                        Text(localeLabel(locale)).tag(locale.identifier)
+                    ForEach(Self.supportedLocales, id: \.identifier) { locale in
+                        Text(Self.localeLabel(locale)).tag(locale.identifier)
                     }
                 }
             } header: {
@@ -468,6 +469,11 @@ struct SettingsView: View {
                         ForEach(HotkeyChoice.allCases) { choice in
                             Text(choice.label).tag(choice)
                         }
+                    }
+                    if state.commandHotkey == state.hotkey {
+                        Label("Command Mode needs a different key from the dictation hotkey — it's disabled while they match.",
+                              systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
                     }
                     LabeledContent("Command Mode",
                                    value: "Select text, hold the hotkey, say e.g. “make this more formal”")

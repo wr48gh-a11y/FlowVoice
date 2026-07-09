@@ -63,7 +63,13 @@ final class OverlayController {
     }
 
     private func position() {
-        guard let panel, let screen = NSScreen.main else { return }
+        guard let panel else { return }
+        // Prefer the screen the cursor is on (where the user is working) over
+        // the main screen, so the pill isn't stranded on the wrong display.
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
+            ?? NSScreen.main
+        guard let screen else { return }
         let f = screen.visibleFrame
         let size = panel.frame.size
         panel.setFrameOrigin(NSPoint(x: f.midX - size.width / 2, y: f.minY + 24))
