@@ -128,12 +128,16 @@ final class DictationController {
         if state.useLLM, state.activeLLMKey?.isEmpty == false {
             Task { @MainActor in
                 let formatted: String
+                var errorMessage: String?
                 do {
                     formatted = try await LLMFormatter.format(transcript: raw, appName: appName, state: self.state)
+                } catch let error as LLMFormatter.LLMError {
+                    formatted = TextFormatter.format(raw, state: self.state)
+                    errorMessage = error.userMessage
                 } catch {
                     formatted = TextFormatter.format(raw, state: self.state)
                 }
-                self.deliver(raw: raw, formatted: formatted, appName: appName)
+                self.deliver(raw: raw, formatted: formatted, appName: appName, errorMessage: errorMessage)
             }
         } else {
             deliver(raw: raw, formatted: TextFormatter.format(raw, state: state), appName: appName)
@@ -148,18 +152,25 @@ final class DictationController {
                     let result = try await LLMFormatter.command(
                         instruction: instruction, selectedText: selection, state: self.state)
                     self.deliver(raw: instruction, formatted: result, appName: appName)
+                } catch let error as LLMFormatter.LLMError {
+                    self.overlay.showError(error.userMessage)
+                    if self.state.playSounds { NSSound(named: "Basso")?.play() }
                 } catch {
-                    self.overlay.hide()
+                    self.overlay.showError("Command Mode failed — try again")
                     if self.state.playSounds { NSSound(named: "Basso")?.play() }
                 }
             }
         }
     }
 
-    private func deliver(raw: String, formatted: String, appName: String) {
+    private func deliver(raw: String, formatted: String, appName: String, errorMessage: String? = nil) {
         state.addHistory(raw: raw, formatted: formatted, appName: appName)
         Paster.paste(formatted)
-        overlay.hide()
+        if let errorMessage {
+            overlay.showError(errorMessage)
+        } else {
+            overlay.hide()
+        }
         if state.playSounds { NSSound(named: "Glass")?.play() }
     }
 

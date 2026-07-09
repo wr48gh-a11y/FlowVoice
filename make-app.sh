@@ -4,9 +4,41 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # The installed Command Line Tools SDK is missing HIServices/Icons.h; a VFS
-# overlay maps a stub into place (see SDKShim/).
-export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.sdk
-OVERLAY="$PWD/SDKShim/overlay.yaml"
+# overlay maps a stub into place (see SDKShim/HIServices/Icons.h). The overlay
+# itself is generated below (not checked into git) so it always points at
+# whichever SDK is active and at this checkout's actual path — a static
+# overlay.yaml would hard-code both to one machine.
+SDK_PATH=$(xcrun --show-sdk-path)
+SDK_REALPATH=$(cd "$SDK_PATH" && pwd -P)
+export SDKROOT="$SDK_PATH"
+
+ICONS_STUB="$PWD/SDKShim/HIServices/Icons.h"
+mkdir -p .build
+OVERLAY="$PWD/.build/overlay.yaml"
+
+overlay_roots_for_sdk() {
+  local sdk="$1"
+  for sub in "Headers" "Versions/A/Headers" "Versions/Current/Headers"; do
+    printf '  {"type": "directory", "name": "%s/System/Library/Frameworks/ApplicationServices.framework/Frameworks/HIServices.framework/%s", "contents": [{"type": "file", "name": "Icons.h", "external-contents": "%s"}]}\n' \
+      "$sdk" "$sub" "$ICONS_STUB"
+  done
+}
+
+{
+  echo '{'
+  echo ' "version": 0,'
+  echo ' "case-sensitive": "false",'
+  echo ' "fallthrough": true,'
+  echo ' "roots": ['
+  overlay_roots_for_sdk "$SDK_PATH" | paste -sd, -
+  if [ "$SDK_REALPATH" != "$SDK_PATH" ]; then
+    echo ','
+    overlay_roots_for_sdk "$SDK_REALPATH" | paste -sd, -
+  fi
+  echo ' ]'
+  echo '}'
+} > "$OVERLAY"
+
 swift build -c release \
   -Xswiftc -vfsoverlay -Xswiftc "$OVERLAY" \
   -Xcc -ivfsoverlay -Xcc "$OVERLAY"

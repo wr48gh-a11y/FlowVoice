@@ -31,6 +31,22 @@ final class OverlayController {
         }
     }
 
+    /// Briefly show an error message in place of the usual recording pill,
+    /// then auto-hide. Used when AI formatting or Command Mode fails so the
+    /// failure isn't silent.
+    func showError(_ message: String) {
+        DispatchQueue.main.async { [self] in
+            OverlayModel.shared.mode = .error(message)
+            if panel == nil { panel = makePanel() }
+            position()
+            panel?.orderFrontRegardless()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                guard let self, OverlayModel.shared.mode == .error(message) else { return }
+                self.panel?.orderOut(nil)
+            }
+        }
+    }
+
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 320, height: 64),
@@ -54,7 +70,7 @@ final class OverlayController {
     }
 }
 
-enum OverlayMode { case recording, handsFree, processing, command }
+enum OverlayMode: Equatable { case recording, handsFree, processing, command, error(String) }
 
 final class OverlayModel: ObservableObject {
     static let shared = OverlayModel()
@@ -73,6 +89,10 @@ struct OverlayView: View {
                 case .processing:
                     ProgressView().controlSize(.small)
                     Text("Formatting…").font(.callout).foregroundStyle(.white)
+                case .error(let message):
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text(message).font(.callout).foregroundStyle(.white)
                 case .recording, .handsFree, .command:
                     Image(systemName: model.mode == .command ? "wand.and.stars" : "mic.fill")
                         .foregroundStyle(model.mode == .command ? .purple

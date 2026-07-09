@@ -7,6 +7,14 @@ enum LLMFormatter {
     enum LLMError: Error {
         case noKey
         case badResponse(String)
+
+        /// Short, non-technical message safe to surface in the overlay.
+        var userMessage: String {
+            switch self {
+            case .noKey: return "No API key set — add one in Settings"
+            case .badResponse: return "AI formatting failed — check your API key or connection"
+            }
+        }
     }
 
     /// Rewrite a raw spoken transcript into clean written text for the target app.

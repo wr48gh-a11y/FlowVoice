@@ -66,6 +66,7 @@ struct MainView: View {
 
 struct HistoryView: View {
     @ObservedObject var state = AppState.shared
+    @State private var showClearConfirm = false
 
     private var dayGroups: [(day: Date, entries: [HistoryEntry])] {
         let calendar = Calendar.current
@@ -102,8 +103,14 @@ struct HistoryView: View {
         .navigationTitle("History")
         .toolbar {
             if !state.history.isEmpty {
-                Button("Clear All", role: .destructive) { state.history.removeAll() }
+                Button("Clear All", role: .destructive) { showClearConfirm = true }
             }
+        }
+        .confirmationDialog("Clear all history?", isPresented: $showClearConfirm, titleVisibility: .visible) {
+            Button("Clear All", role: .destructive) { state.history.removeAll() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This deletes all \(state.history.count) dictations. This can't be undone.")
         }
     }
 }
@@ -429,44 +436,46 @@ struct SettingsView: View {
 
             Section {
                 Toggle("Use AI to polish dictation & enable Command Mode", isOn: $state.useLLM)
-                Picker("Provider", selection: $state.llmProvider) {
-                    ForEach(LLMProvider.allCases) { p in
-                        Text(p.label).tag(p)
-                    }
-                }
-                switch state.llmProvider {
-                case .anthropic:
-                    SecureField("Anthropic API key (sk-ant-…)", text: $anthropicKeyField)
-                        .onSubmit { state.apiKey = anthropicKeyField }
-                    Button("Save key") { state.apiKey = anthropicKeyField }
-                        .disabled(anthropicKeyField == (state.apiKey ?? ""))
-                    Picker("Model", selection: $state.llmModel) {
-                        ForEach(anthropicModels, id: \.id) { m in
-                            Text(m.label).tag(m.id)
+                if state.useLLM {
+                    Picker("Provider", selection: $state.llmProvider) {
+                        ForEach(LLMProvider.allCases) { p in
+                            Text(p.label).tag(p)
                         }
                     }
-                case .openai:
-                    SecureField("OpenAI API key (sk-…)", text: $openaiKeyField)
-                        .onSubmit { state.openaiKey = openaiKeyField }
-                    Button("Save key") { state.openaiKey = openaiKeyField }
-                        .disabled(openaiKeyField == (state.openaiKey ?? ""))
-                    Picker("Model", selection: $state.openaiModel) {
-                        ForEach(openaiModels, id: \.id) { m in
-                            Text(m.label).tag(m.id)
+                    switch state.llmProvider {
+                    case .anthropic:
+                        SecureField("Anthropic API key (sk-ant-…)", text: $anthropicKeyField)
+                            .onSubmit { state.apiKey = anthropicKeyField }
+                        Button("Save key") { state.apiKey = anthropicKeyField }
+                            .disabled(anthropicKeyField == (state.apiKey ?? ""))
+                        Picker("Model", selection: $state.llmModel) {
+                            ForEach(anthropicModels, id: \.id) { m in
+                                Text(m.label).tag(m.id)
+                            }
+                        }
+                    case .openai:
+                        SecureField("OpenAI API key (sk-…)", text: $openaiKeyField)
+                            .onSubmit { state.openaiKey = openaiKeyField }
+                        Button("Save key") { state.openaiKey = openaiKeyField }
+                            .disabled(openaiKeyField == (state.openaiKey ?? ""))
+                        Picker("Model", selection: $state.openaiModel) {
+                            ForEach(openaiModels, id: \.id) { m in
+                                Text(m.label).tag(m.id)
+                            }
                         }
                     }
-                }
-                Picker("Command Mode hotkey", selection: $state.commandHotkey) {
-                    ForEach(HotkeyChoice.allCases) { choice in
-                        Text(choice.label).tag(choice)
+                    Picker("Command Mode hotkey", selection: $state.commandHotkey) {
+                        ForEach(HotkeyChoice.allCases) { choice in
+                            Text(choice.label).tag(choice)
+                        }
                     }
-                }
-                LabeledContent("Command Mode",
-                               value: "Select text, hold the hotkey, say e.g. “make this more formal”")
-                if state.useLLM && (state.activeLLMKey ?? "").isEmpty {
-                    Label("Enter an API key — falling back to on-device formatting until then.",
-                          systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                    LabeledContent("Command Mode",
+                                   value: "Select text, hold the hotkey, say e.g. “make this more formal”")
+                    if (state.activeLLMKey ?? "").isEmpty {
+                        Label("Enter an API key — falling back to on-device formatting until then.",
+                              systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
                 }
             } header: {
                 Label("AI formatting", systemImage: "sparkles")
