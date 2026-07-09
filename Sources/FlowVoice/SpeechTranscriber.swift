@@ -23,6 +23,11 @@ final class SpeechTranscriber: NSObject {
     private var segmentText = ""
     private var contextualStrings: [String] = []
     private var isRunning = false
+    /// Whether a tap is currently installed on the input node. Tracked
+    /// separately from audioEngine.isRunning: if the engine is stopped
+    /// externally (e.g. the mic is unplugged mid-dictation), the tap stays
+    /// installed, and installing a second one on the next session crashes.
+    private var tapInstalled = false
     private var finishCompletion: ((String) -> Void)?
     private var finishTimeout: DispatchWorkItem?
 
@@ -65,6 +70,7 @@ final class SpeechTranscriber: NSObject {
             self?.request?.append(buffer)
             self?.reportLevels(buffer)
         }
+        tapInstalled = true
         audioEngine.prepare()
         try audioEngine.start()
         isRunning = true
@@ -122,7 +128,7 @@ final class SpeechTranscriber: NSObject {
     /// Stops capture and waits for the recognizer's final result (bounded).
     func finish(completion: @escaping (String) -> Void) {
         isRunning = false
-        audioEngine.inputNode.removeTap(onBus: 0)
+        removeTap()
         audioEngine.stop()
         request?.endAudio()
 
@@ -143,11 +149,20 @@ final class SpeechTranscriber: NSObject {
         isRunning = false
         finishTimeout?.cancel()
         finishCompletion = nil
+        removeTap()
         if audioEngine.isRunning {
-            audioEngine.inputNode.removeTap(onBus: 0)
             audioEngine.stop()
         }
         teardown()
+    }
+
+    /// Removes the input tap if one is installed. Guarded by `tapInstalled`
+    /// (not audioEngine.isRunning) so a tap left behind by an externally
+    /// stopped engine is still cleaned up before the next session.
+    private func removeTap() {
+        guard tapInstalled else { return }
+        audioEngine.inputNode.removeTap(onBus: 0)
+        tapInstalled = false
     }
 
     private func teardown() {

@@ -476,6 +476,11 @@ struct SettingsView: View {
                               systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
                     }
+                    if state.keychainSaveFailed {
+                        Label("Couldn't save the key to your Keychain. Try again, or check Keychain Access.",
+                              systemImage: "xmark.octagon")
+                            .foregroundStyle(.red)
+                    }
                 }
             } header: {
                 Label("AI formatting", systemImage: "sparkles")

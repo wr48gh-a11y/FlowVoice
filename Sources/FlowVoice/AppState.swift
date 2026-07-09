@@ -67,7 +67,7 @@ final class AppState: ObservableObject {
     }
     /// OpenAI API key, stored in the Keychain.
     @Published var openaiKey: String? {
-        didSet { Keychain.set(openaiKey ?? "", for: "openaiApiKey") }
+        didSet { reportKeychain(Keychain.set(openaiKey ?? "", for: "openaiApiKey")) }
     }
     @Published var useLLM: Bool {
         didSet { defaults.set(useLLM, forKey: "useLLM") }
@@ -80,8 +80,11 @@ final class AppState: ObservableObject {
     }
     /// Anthropic API key, stored in the Keychain (never in UserDefaults).
     @Published var apiKey: String? {
-        didSet { Keychain.set(apiKey ?? "", for: "anthropicApiKey") }
+        didSet { reportKeychain(Keychain.set(apiKey ?? "", for: "anthropicApiKey")) }
     }
+    /// Set when a Keychain save fails, so Settings can warn the user instead
+    /// of the key silently vanishing on next launch.
+    @Published var keychainSaveFailed = false
     @Published var dictionaryWords: [String] {
         didSet { defaults.set(dictionaryWords, forKey: "dictionaryWords") }
     }
@@ -104,6 +107,11 @@ final class AppState: ObservableObject {
     @Published var audioBands: [Float] = Array(repeating: 0, count: SpeechTranscriber.bandCount)
 
     private let defaults = UserDefaults.standard
+
+    private func reportKeychain(_ success: Bool) {
+        keychainSaveFailed = !success
+        if !success { NSLog("FlowVoice: Keychain save failed") }
+    }
 
     private var supportDir: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
