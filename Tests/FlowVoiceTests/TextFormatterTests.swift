@@ -51,4 +51,48 @@ private func fmt(_ raw: String, snippets: [Snippet] = []) -> String {
             "um hello", options: FormatterOptions(removeFillers: false))
         #expect(result.lowercased().contains("um"))
     }
+
+    // MARK: - tidy() URL/domain period guard
+
+    @Test func noTrailingPeriodAfterUrl() {
+        // A trailing "." would corrupt a bare domain — must be left alone.
+        #expect(fmt("check out my site at example.com") == "Check out my site at example.com")
+        #expect(fmt("the link is https://cal.com/hugh") == "The link is https://cal.com/hugh")
+    }
+
+    @Test func trailingPeriodForNormalSentence() {
+        // Sentence-like text still gets terminal punctuation.
+        #expect(fmt("let's ship it") == "Let's ship it.")
+    }
+
+    @Test func noTrailingPeriodAfterExistingPunctuation() {
+        #expect(fmt("done!") == "Done!")
+        #expect(fmt("is that ok?") == "Is that ok?")
+    }
+
+    // MARK: - Filler-removal artifacts
+
+    @Test func noDoubleSpacesAfterFillerRemoval() {
+        let result = fmt("well um so anyway")
+        #expect(!result.contains("  "))
+    }
+
+    @Test func noOrphanedLeadingComma() {
+        let result = fmt("uh let's go")
+        // Removing a leading filler must not leave a stray "," or " ," up front.
+        #expect(!result.hasPrefix(","))
+        #expect(!result.hasPrefix(" ,"))
+    }
+
+    // MARK: - Self-correction edge cases
+
+    @Test func selfCorrectionMultiple() {
+        // The word before the marker is dropped, not the corrected tail.
+        #expect(fmt("call him Bob, I mean, Dave") == "Call him Dave.")
+    }
+
+    @Test func noFalseCorrectionWithoutMarker() {
+        // "actually" mid-sentence is not a correction without the "no" tail.
+        #expect(fmt("I actually like it") == "I actually like it.")
+    }
 }
