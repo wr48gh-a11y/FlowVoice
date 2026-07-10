@@ -14,7 +14,12 @@ final class DictationController {
 
     private var keyDownTime: Date?
     private var lastTapEndTime: Date?
-    private let tapMaxDuration: TimeInterval = 0.35
+    /// A release quicker than this is treated as a tap (double-tap → hands-free,
+    /// single tap → cancel) rather than a real dictation. Kept short so a
+    /// brief-but-intentional "hold to dictate a word" still pastes instead of
+    /// being swallowed as a tap. A genuine double-tap is two presses well under
+    /// this each, so the gesture still registers.
+    private let tapMaxDuration: TimeInterval = 0.25
     private let doubleTapWindow: TimeInterval = 0.5
 
     func start() {
@@ -90,7 +95,12 @@ final class DictationController {
             try transcriber.start(contextualStrings: state.dictionaryWords,
                                   localeId: state.localeId.isEmpty ? nil : state.localeId)
         } catch {
-            NSSound.beep()
+            // Don't fail silently: a beep alone tells the user nothing.
+            // The most common cause is a missing/revoked permission, so point
+            // them there. The recognizer itself distinguishes those cases too
+            // little to branch on reliably, so a general message is safest.
+            overlay.showError("Microphone unavailable — check Microphone and Speech Recognition permission in Setup Guide.")
+            if state.playSounds { NSSound.beep() }
             return
         }
         state.isRecording = true
@@ -153,11 +163,30 @@ final class DictationController {
                         instruction: instruction, selectedText: selection, state: self.state)
                     self.deliver(raw: instruction, formatted: result, appName: appName)
                 } catch let error as LLMFormatter.LLMError {
-                    self.overlay.showError(error.userMessage)
-                    if self.state.playSounds { NSSound(named: "Basso")?.play() }
+                    // Degrade instead of discarding: with a selection, the
+                    // best we can do without the LLM is leave the original
+                    // text untouched and tell the user why. With no selection,
+                    // the instruction itself is what they wanted typed, so
+                    // deliver it (cleaned up) rather than nothing.
+                    if selection.isEmpty {
+                        self.deliver(raw: instruction,
+                                     formatted: TextFormatter.format(instruction, state: self.state),
+                                     appName: appName,
+                                     errorMessage: error.userMessage)
+                    } else {
+                        self.overlay.showError(error.userMessage)
+                        if self.state.playSounds { NSSound(named: "Basso")?.play() }
+                    }
                 } catch {
-                    self.overlay.showError("Command Mode failed — try again")
-                    if self.state.playSounds { NSSound(named: "Basso")?.play() }
+                    if selection.isEmpty {
+                        self.deliver(raw: instruction,
+                                     formatted: TextFormatter.format(instruction, state: self.state),
+                                     appName: appName,
+                                     errorMessage: "Command Mode failed — try again")
+                    } else {
+                        self.overlay.showError("Command Mode failed — try again")
+                        if self.state.playSounds { NSSound(named: "Basso")?.play() }
+                    }
                 }
             }
         }
