@@ -37,6 +37,9 @@ final class HotkeyMonitor {
     private func handle(_ event: NSEvent) {
         let state = AppState.shared
         check(event, choice: state.hotkey, kind: .dictation)
+        // Command Mode can't share the dictation key — there'd be no way to
+        // tell a press apart. Settings warns the user; here we just skip, but
+        // log it once so a "Command Mode stopped working" report is traceable.
         if state.useLLM, state.commandHotkey != state.hotkey {
             check(event, choice: state.commandHotkey, kind: .command)
         }

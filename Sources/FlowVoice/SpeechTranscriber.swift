@@ -129,7 +129,9 @@ final class SpeechTranscriber: NSObject {
     func finish(completion: @escaping (String) -> Void) {
         isRunning = false
         removeTap()
-        audioEngine.stop()
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
         request?.endAudio()
 
         finishCompletion = completion
@@ -178,14 +180,19 @@ final class SpeechTranscriber: NSObject {
         guard let data = buffer.floatChannelData?[0] else { return }
         let n = Int(buffer.frameLength)
         guard n >= Self.bandCount else { return }
-        let chunk = n / Self.bandCount
+        // Distribute samples evenly; the last band absorbs any remainder so we
+        // never read past frameLength (the naive n/bandCount rounding could).
         var levels = [Float](repeating: 0, count: Self.bandCount)
+        let base = n / Self.bandCount
+        let remainder = n % Self.bandCount
+        var offset = 0
         for band in 0..<Self.bandCount {
+            let len = base + (band < remainder ? 1 : 0)
             var sum: Float = 0
-            let start = band * chunk
-            for i in start..<(start + chunk) { sum += data[i] * data[i] }
-            let rms = sqrt(sum / Float(chunk))
+            for i in offset..<(offset + len) { sum += data[i] * data[i] }
+            let rms = sqrt(sum / Float(len))
             levels[band] = min(1, max(0, (20 * log10(max(rms, 1e-7)) + 50) / 50))
+            offset += len
         }
         DispatchQueue.main.async { self.onLevels?(levels) }
     }
