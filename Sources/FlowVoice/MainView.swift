@@ -386,19 +386,8 @@ struct SettingsView: View {
         Locale.current.localizedString(forIdentifier: locale.identifier) ?? locale.identifier
     }
 
-    @State private var anthropicKeyField = AppState.shared.apiKey ?? ""
+    @State private var anthropicKeyField = AppState.shared.anthropicKey ?? ""
     @State private var openaiKeyField = AppState.shared.openaiKey ?? ""
-
-    private let anthropicModels: [(id: String, label: String)] = [
-        ("claude-haiku-4-5", "Claude Haiku 4.5 — fastest, cheapest"),
-        ("claude-sonnet-5", "Claude Sonnet 5 — balanced"),
-        ("claude-opus-4-8", "Claude Opus 4.8 — most capable"),
-    ]
-    private let openaiModels: [(id: String, label: String)] = [
-        ("gpt-4o-mini", "GPT-4o mini — fastest, cheapest"),
-        ("gpt-4o", "GPT-4o — balanced"),
-        ("gpt-4.1", "GPT-4.1 — most capable"),
-    ]
 
     var body: some View {
         Form {
@@ -443,27 +432,11 @@ struct SettingsView: View {
                             Text(p.label).tag(p)
                         }
                     }
+                    // One shared key + model editor per provider; the active
+                    // provider's stored key/model back it (see ProviderKeySection).
                     switch state.llmProvider {
-                    case .anthropic:
-                        SecureField("Anthropic API key (sk-ant-…)", text: $anthropicKeyField)
-                            .onSubmit { state.apiKey = anthropicKeyField }
-                        Button("Save key") { state.apiKey = anthropicKeyField }
-                            .disabled(anthropicKeyField == (state.apiKey ?? ""))
-                        Picker("Model", selection: $state.llmModel) {
-                            ForEach(anthropicModels, id: \.id) { m in
-                                Text(m.label).tag(m.id)
-                            }
-                        }
-                    case .openai:
-                        SecureField("OpenAI API key (sk-…)", text: $openaiKeyField)
-                            .onSubmit { state.openaiKey = openaiKeyField }
-                        Button("Save key") { state.openaiKey = openaiKeyField }
-                            .disabled(openaiKeyField == (state.openaiKey ?? ""))
-                        Picker("Model", selection: $state.openaiModel) {
-                            ForEach(openaiModels, id: \.id) { m in
-                                Text(m.label).tag(m.id)
-                            }
-                        }
+                    case .anthropic: ProviderKeySection(state: state, keyField: $anthropicKeyField)
+                    case .openai: ProviderKeySection(state: state, keyField: $openaiKeyField)
                     }
                     Picker("Command Mode hotkey", selection: $state.commandHotkey) {
                         ForEach(HotkeyChoice.allCases) { choice in
@@ -477,6 +450,10 @@ struct SettingsView: View {
                     }
                     LabeledContent("Command Mode",
                                    value: "Select text, hold the hotkey, say e.g. “make this more formal”")
+                    Label("Transcripts are sent to \(state.llmProvider.label) when AI formatting is on. Without it, everything stays on-device.",
+                          systemImage: "lock.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     if (state.activeLLMKey ?? "").isEmpty {
                         Label("Enter an API key — falling back to on-device formatting until then.",
                               systemImage: "exclamationmark.triangle")
@@ -519,5 +496,47 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
+    }
+}
+
+/// Shared "API key + model picker" editor for the active provider. Replaces
+/// the previously duplicated per-provider blocks: the SecureField, Save
+/// button, and model Picker are identical across providers — only the stored
+/// key/model binding differs, which we route through a couple of small getters.
+private struct ProviderKeySection: View {
+    @ObservedObject var state: AppState
+    @Binding var keyField: String
+
+    var body: some View {
+        SecureField(state.llmProvider.keyFieldPlaceholder, text: $keyField)
+            .onSubmit { commitKey() }
+        Button("Save key") { commitKey() }
+            .disabled(keyField == (storedKey ?? ""))
+        Picker("Model", selection: modelBinding) {
+            ForEach(state.llmProvider.models, id: \.id) { m in
+                Text(m.label).tag(m.id)
+            }
+        }
+    }
+
+    private func commitKey() {
+        switch state.llmProvider {
+        case .anthropic: state.anthropicKey = keyField
+        case .openai: state.openaiKey = keyField
+        }
+    }
+
+    private var storedKey: String? {
+        switch state.llmProvider {
+        case .anthropic: return state.anthropicKey
+        case .openai: return state.openaiKey
+        }
+    }
+
+    private var modelBinding: Binding<String> {
+        switch state.llmProvider {
+        case .anthropic: return $state.anthropicModel
+        case .openai: return $state.openaiModel
+        }
     }
 }

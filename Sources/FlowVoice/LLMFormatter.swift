@@ -53,9 +53,9 @@ enum LLMFormatter {
         guard let key = state.activeLLMKey, !key.isEmpty else { throw LLMError.noKey }
         switch state.llmProvider {
         case .anthropic:
-            return try await completeAnthropic(system: system, user: user, key: key, model: state.llmModel)
+            return try await completeAnthropic(system: system, user: user, key: key, model: state.activeLLMModel)
         case .openai:
-            return try await completeOpenAI(system: system, user: user, key: key, model: state.openaiModel)
+            return try await completeOpenAI(system: system, user: user, key: key, model: state.activeLLMModel)
         }
     }
 

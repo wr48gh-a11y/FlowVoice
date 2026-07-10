@@ -27,6 +27,40 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
         case .openai: return "ChatGPT (OpenAI)"
         }
     }
+
+    /// Preset models offered in Settings for this provider. Defined on the
+    /// provider so both the settings UI and any future call site share one
+    /// source of truth instead of duplicating the list.
+    var models: [(id: String, label: String)] {
+        switch self {
+        case .anthropic: return LLMProviderPresets.anthropic
+        case .openai: return LLMProviderPresets.openai
+        }
+    }
+
+    /// Placeholder for the API-key text field in Settings.
+    var keyFieldPlaceholder: String {
+        switch self {
+        case .anthropic: return "Anthropic API key (sk-ant-…)"
+        case .openai: return "OpenAI API key (sk-…)"
+        }
+    }
+}
+
+/// Compile-time model presets per provider. These go stale as providers rename
+/// or retire models; a bad/retired id makes formatting fail and fall back to
+/// the on-device formatter, so they degrade safely.
+enum LLMProviderPresets {
+    static let anthropic: [(id: String, label: String)] = [
+        ("claude-haiku-4-5", "Claude Haiku 4.5 — fastest, cheapest"),
+        ("claude-sonnet-5", "Claude Sonnet 5 — balanced"),
+        ("claude-opus-4-8", "Claude Opus 4.8 — most capable"),
+    ]
+    static let openai: [(id: String, label: String)] = [
+        ("gpt-4o-mini", "GPT-4o mini — fastest, cheapest"),
+        ("gpt-4o", "GPT-4o — balanced"),
+        ("gpt-4.1", "GPT-4.1 — most capable"),
+    ]
 }
 
 struct Snippet: Identifiable, Codable, Equatable {
@@ -72,15 +106,15 @@ final class AppState: ObservableObject {
     @Published var useLLM: Bool {
         didSet { defaults.set(useLLM, forKey: "useLLM") }
     }
-    @Published var llmModel: String {
-        didSet { defaults.set(llmModel, forKey: "llmModel") }
+    @Published var anthropicModel: String {
+        didSet { defaults.set(anthropicModel, forKey: "llmModel") }
     }
     @Published var commandHotkey: HotkeyChoice {
         didSet { defaults.set(commandHotkey.rawValue, forKey: "commandHotkey") }
     }
     /// Anthropic API key, stored in the Keychain (never in UserDefaults).
-    @Published var apiKey: String? {
-        didSet { reportKeychain(Keychain.set(apiKey ?? "", for: "anthropicApiKey")) }
+    @Published var anthropicKey: String? {
+        didSet { reportKeychain(Keychain.set(anthropicKey ?? "", for: "anthropicApiKey")) }
     }
     /// Set when a Keychain save fails, so Settings can warn the user instead
     /// of the key silently vanishing on next launch.
@@ -129,9 +163,9 @@ final class AppState: ObservableObject {
         llmProvider = LLMProvider(rawValue: defaults.string(forKey: "llmProvider") ?? "") ?? .anthropic
         openaiModel = defaults.string(forKey: "openaiModel") ?? "gpt-4o-mini"
         openaiKey = Keychain.get("openaiApiKey")
-        llmModel = defaults.string(forKey: "llmModel") ?? "claude-haiku-4-5"
+        anthropicModel = defaults.string(forKey: "llmModel") ?? "claude-haiku-4-5"
         commandHotkey = HotkeyChoice(rawValue: defaults.string(forKey: "commandHotkey") ?? "") ?? .rightCommand
-        apiKey = Keychain.get("anthropicApiKey")
+        anthropicKey = Keychain.get("anthropicApiKey")
         localeId = defaults.string(forKey: "localeId") ?? ""
         dictionaryWords = defaults.stringArray(forKey: "dictionaryWords") ?? []
         snippets = []
@@ -156,8 +190,16 @@ final class AppState: ObservableObject {
     /// The API key for the currently selected provider.
     var activeLLMKey: String? {
         switch llmProvider {
-        case .anthropic: return apiKey
+        case .anthropic: return anthropicKey
         case .openai: return openaiKey
+        }
+    }
+
+    /// The model id for the currently selected provider.
+    var activeLLMModel: String {
+        switch llmProvider {
+        case .anthropic: return anthropicModel
+        case .openai: return openaiModel
         }
     }
 
