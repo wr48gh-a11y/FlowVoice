@@ -42,6 +42,22 @@ ChatGPT, paste an API key ([console.anthropic.com](https://console.anthropic.com
 stored in the macOS Keychain. Without a key, a built-in rule-based formatter
 handles cleanup and everything stays offline.
 
+**Privacy note:** with AI formatting off, transcription never leaves your Mac.
+Turning it on sends the transcribed text to your chosen provider (Anthropic or
+OpenAI) for rewriting. The privacy note in Settings reminds you of this when
+you enable it.
+
+## How pasting works
+
+The transcript temporarily replaces your clipboard, ⌘V is synthesized into the
+frontmost app, and your previous clipboard contents — including images and rich
+text — are restored afterwards.
+
+If something goes wrong, a small message appears briefly where the recording
+pill was: a missing or invalid API key, an AI formatting/Command Mode failure, a
+Keychain save problem, or an unavailable microphone. Dictation that can't be
+AI-polished falls back to on-device formatting rather than failing silently.
+
 ## Build from source
 
 Requires macOS 14+ and the Swift toolchain (Command Line Tools are enough):
@@ -54,13 +70,10 @@ swift test        # formatter test suite
 ```
 
 If your Command Line Tools SDK is missing `HIServices/Icons.h` (a known broken
-install), `make-app.sh` already works around it via the VFS overlay in `SDKShim/`.
-
-## How pasting works
-
-The transcript temporarily replaces your clipboard, ⌘V is synthesized into the
-frontmost app, and your previous clipboard contents — including images and rich
-text — are restored afterwards.
+install), `make-app.sh` already works around it by generating a VFS overlay on
+the fly (using `xcrun --show-sdk-path`), so the build is portable across
+machines and SDK versions. The formatter test suite runs in CI on every push
+and pull request.
 
 ## License
 
