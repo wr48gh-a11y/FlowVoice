@@ -6,12 +6,15 @@ enum LLMFormatter {
 
     enum LLMError: Error {
         case noKey
+        case staleModel
         case badResponse(String)
 
         /// Short, non-technical message safe to surface in the overlay.
         var userMessage: String {
             switch self {
             case .noKey: return "No API key set — add one in Settings"
+            case .staleModel:
+                return "That AI model isn't available — pick a current one in Settings"
             case .badResponse: return "AI formatting failed — check your API key or connection"
             }
         }
@@ -126,9 +129,27 @@ enum LLMFormatter {
     private static func send(_ request: URLRequest) async throws -> Data {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            // Providers return 4xx with a body mentioning the model when the
+            // configured model id is retired, unknown, or unavailable. Detect
+            // that specifically so we can tell the user to pick a current one
+            // in Settings — the hard-coded preset list goes stale over time.
+            if Self.looksLikeStaleModel(data: data, response: response as? HTTPURLResponse) {
+                throw LLMError.staleModel
+            }
             let message = String(data: data, encoding: .utf8) ?? "unknown error"
             throw LLMError.badResponse(message)
         }
         return data
+    }
+
+    /// True when an error response looks like "model not found / unavailable",
+    /// which means the configured model preset is stale rather than the request
+    /// being otherwise malformed (bad key, network, etc.).
+    private static func looksLikeStaleModel(data: Data, response: HTTPURLResponse?) -> Bool {
+        guard let code = response?.statusCode, (400...404).contains(code) else { return false }
+        let body = (String(data: data, encoding: .utf8) ?? "").lowercased()
+        return body.contains("model") && (body.contains("not found")
+            || body.contains("does not exist") || body.contains("unavailable")
+            || body.contains("decommission") || body.contains("unknown model"))
     }
 }

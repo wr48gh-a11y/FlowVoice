@@ -21,15 +21,24 @@ enum Theme {
 /// Derived usage statistics, Wispr-style.
 enum Stats {
     static let typingWPM = 45.0
-    static let speakingWPM = 220.0
+
+    /// Effective speaking rate, in words per minute, used to estimate time
+    /// saved vs. typing. 220 WPM is a raw speech rate, but real dictation
+    /// also spends time on recognizer latency, the final-result wait, and
+    /// (when AI formatting is on) a network round-trip. Using the raw rate
+    /// overstated "time saved", so we credit a realistic effective rate that
+    /// accounts for that overhead.
+    static let speakingWPM = 150.0
 
     static func words(in history: [HistoryEntry]) -> Int {
         history.reduce(0) { $0 + $1.formatted.split(whereSeparator: \.isWhitespace).count }
     }
 
-    /// Minutes saved vs. typing the same words.
+    /// Minutes saved vs. typing the same words. Floors at zero: if the
+    /// effective speaking rate were ever at or below typing speed, dictation
+    /// wouldn't be saving time and we shouldn't report a negative.
     static func minutesSaved(words: Int) -> Double {
-        Double(words) * (1.0 / typingWPM - 1.0 / speakingWPM)
+        max(0, Double(words) * (1.0 / typingWPM - 1.0 / speakingWPM))
     }
 
     static func formattedTimeSaved(words: Int) -> String {
